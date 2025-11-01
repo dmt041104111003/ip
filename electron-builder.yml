@@ -1,0 +1,35 @@
+appId: com.wifi-info-reader.app
+productName: WiFi Info Reader
+directories:
+  output: dist
+  buildResources: build
+files:
+  - "**/*"
+  - "!node_modules/**/*"
+  - "node_modules/**/*"
+  - "!backend.js"
+  - "!render.yaml"
+  - "!.git/**/*"
+  - "!DEPLOY.md"
+  - "!README.md"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  requestedExecutionLevel: requireAdministrator
+mac:
+  target: dmg
+  icon: build/icon.icns
+  category: public.app-category.utilities
+linux:
+  target: AppImage
+  icon: build/icon.png
+  category: Network
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
