@@ -5,8 +5,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ALLOWED_WIFI = {
-  ssid: 'Wifi12',
-  bssid: 'fc:57:03:ce:55:64'
+  ssid: 'VIETTEL_5G',
+  bssid: '24:0b:2a:7f:5d:22'
 };
 
 app.use(cors());
