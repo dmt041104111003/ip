@@ -6,121 +6,84 @@ let currentData = {
     linkLocalIPv6: null
 };
 
+function updateTime() {
+    const timeElement = document.getElementById('timeDisplay');
+    if (timeElement) {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        timeElement.textContent = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
-    refreshInfo();
+    updateTime();
+    setInterval(updateTime, 1000);
 });
 
 async function refreshInfo() {
     try {
-        const buttons = document.querySelectorAll('button');
-        buttons.forEach(btn => btn.disabled = true);
-
         const data = await ipcRenderer.invoke('get-wifi-info');
         currentData = data;
-
-        updateDisplay(data);
-
-        buttons.forEach(btn => btn.disabled = false);
-
-        updateJsonDisplay();
+        return data;
     } catch (error) {
         console.error('Error getting WiFi info:', error);
-        updateDisplay({
+        currentData = {
             ssid: null,
             bssid: null,
             linkLocalIPv6: null
-        });
+        };
+        return currentData;
     }
 }
 
-function updateDisplay(data) {
-    const ssidElement = document.getElementById('ssid');
-    const bssidElement = document.getElementById('bssid');
-    const linkLocalIPv6Element = document.getElementById('linkLocalIPv6');
-
-    ssidElement.textContent = data.ssid || 'null';
-    ssidElement.className = 'info-value' + (data.ssid ? '' : ' null');
-
-    bssidElement.textContent = data.bssid || 'null';
-    bssidElement.className = 'info-value' + (data.bssid ? '' : ' null');
-
-    linkLocalIPv6Element.textContent = data.linkLocalIPv6 || 'null';
-    linkLocalIPv6Element.className = 'info-value' + (data.linkLocalIPv6 ? '' : ' null');
-}
-
-function updateJsonDisplay() {
-    const jsonDisplay = document.getElementById('jsonDisplay');
-    jsonDisplay.textContent = JSON.stringify(currentData, null, 2);
-}
-
-async function sendToBackend() {
+async function checkIn() {
     const statusElement = document.getElementById('status');
+    const btn = document.getElementById('checkinBtn');
 
     try {
-        console.log('=== sendToBackend() called ===');
-        console.log('Sending data to backend:', currentData);
+        btn.disabled = true;
+        btn.textContent = 'Đang xử lý...';
         
-        statusElement.textContent = 'Đang gửi và kiểm tra...';
-        statusElement.className = 'status show';
+        statusElement.textContent = 'Đang kiểm tra WiFi và chấm công...';
+        statusElement.className = 'status loading show';
+
+        await refreshInfo();
 
         const result = await ipcRenderer.invoke('send-wifi-info', currentData);
         
-        console.log('Backend response received:', result);
+        console.log('Backend response:', result);
 
-        if (result.success) {
-            if (result.isValid !== undefined) {
-                if (result.isValid) {
-                    statusElement.textContent = result.message;
-                    statusElement.className = 'status success show';
-                    console.log('Backend check: VALID');
-                } else {
-                    statusElement.textContent = result.message;
-                    statusElement.className = 'status error show';
-                    console.log('Backend check: INVALID');
-                }
-                
-                console.log('Full validation result:', result);
-            } else {
-                statusElement.textContent = 'Thành công! Đã gửi thông tin lên server.';
+        // Kiểm tra kết quả
+        if (result.success && result.isValid !== undefined) {
+            if (result.isValid) {
+                statusElement.textContent = 'Chấm công thành công!';
                 statusElement.className = 'status success show';
-                console.log('Backend không trả về isValid');
+            } else {
+                statusElement.textContent = 'Bạn đang dùng mạng khác';
+                statusElement.className = 'status error show';
             }
+        } else if (result.success) {
+            statusElement.textContent = 'Chấm công thành công!';
+            statusElement.className = 'status success show';
         } else {
-            statusElement.textContent = `Lỗi: ${result.error}`;
+            statusElement.textContent = 'Bạn đang dùng mạng khác';
             statusElement.className = 'status error show';
-            console.error('Backend error:', result.error);
         }
     } catch (error) {
-        statusElement.textContent = `Lỗi: ${error.message}`;
+        statusElement.textContent = 'Bạn đang dùng mạng khác';
         statusElement.className = 'status error show';
-        console.error('Error in sendToBackend():', error);
+        console.error('Error in checkIn():', error);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Chấm Công';
     }
 }
 
-async function copyToClipboard(event) {
-    const jsonString = JSON.stringify(currentData, null, 2);
-    
-    try {
-        await navigator.clipboard.writeText(jsonString);
-        
-        const btn = event?.target || document.querySelector('button.btn-secondary');
-        if (btn) {
-            const originalText = btn.textContent;
-            btn.textContent = 'Đã copy!';
-            btn.style.background = '#28a745';
-            
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.style.background = '';
-            }, 2000);
-        }
-    } catch (error) {
-        console.error('Error copying to clipboard:', error);
-        alert('Không thể copy vào clipboard');
-    }
-}
-
-window.refreshInfo = refreshInfo;
-window.sendToBackend = sendToBackend;
-window.copyToClipboard = copyToClipboard;
+// Expose function để gọi từ HTML
+window.checkIn = checkIn;
 
